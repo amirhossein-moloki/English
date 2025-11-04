@@ -1,0 +1,18 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# DB files
+*.db
+*.sqlite3
+
+# Env files
+.env
+.venv
+env/
+venv/
+ENV/
+venv.bak/
+env.bak/
