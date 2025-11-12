@@ -84,3 +84,16 @@
 > **اتفاق افتاد:** گذشته.
 >
 > برای بیان رویدادی که در گذشته رخ داده است استفاده می‌شود.
+---
+
+> **Proof:** Evidence or argument establishing a fact or the truth of a statement.
+> **اثبات / مدرک:** شواهد یا استدلالی که یک واقعیت یا صحت یک گزاره را ثابت می‌کند.
+>
+> **Example:** The prosecutor presented clear proof of the defendant's guilt.
+> **مثال:** دادستان مدرک روشنی از گناه متهم ارائه کرد.
+>
+> **Synonym:** evidence
+> **مترادف:** شواهد
+>
+> **Antonym:** disproof
+> **متضاد:** رد
