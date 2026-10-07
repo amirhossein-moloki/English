@@ -1,0 +1,8 @@
+pydantic
+python-dotenv
+requests
+PyQt6
+edge-tts
+gTTS
+pytest
+pytest-cov
