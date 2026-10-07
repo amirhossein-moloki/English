@@ -1,0 +1,30 @@
+# Environment Variables Template
+.env
+*.env
+
+# Python Bytecode and Cache
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+
+# SQLite Databases & Media Cache
+*.db
+*.sqlite
+*.sqlite3
+cache/
+media/
+*.mp3
+*.wav
+*.ogg
+
+# Build and Distribution Artifacts
+build/
+dist/
+*.egg-info/
+.eggs/
+
+# IDE & OS Files
+.vscode/
+.idea/
+.DS_Store
