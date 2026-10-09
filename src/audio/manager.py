@@ -27,7 +27,7 @@ class AudioManager:
 
     def resolve_audio(self, item: WordItem) -> Optional[AudioAsset]:
         locale = item.locale or self.config.default_locale
-        norm_word = item.normalized_word
+        norm_word = item.normalized_word or item.word.strip().lower()
 
         # 1. Check SQLite Persistent Audio Cache
         cached_asset = self.db.get_cached_audio(norm_word, locale)
@@ -41,13 +41,22 @@ class AudioManager:
         # 2. Iterate through configured Provider Priority
         item.status = ItemStatus.AUDIO_SEARCH
         for provider_name in self.config.audio_provider_priority:
+            if provider_name == "tts" and not self.config.enable_tts_fallback:
+                logger.info("TTS fallback disabled in configuration; skipping TTS provider.")
+                continue
+
             provider = next((p for p in self.providers if p.name == provider_name), None)
             if not provider or not provider.is_available:
                 continue
 
             logger.info(f"Trying audio provider '{provider.name}' for word '{item.word}'")
             item.status = ItemStatus.AUDIO_DOWNLOADING
-            res = provider.get_audio(item, locale=locale)
+            try:
+                res = provider.get_audio(item, locale=locale)
+            except Exception as e:
+                logger.warning(f"Audio provider '{provider.name}' threw exception for '{item.word}': {e}")
+                continue
+
             if not res:
                 continue
 

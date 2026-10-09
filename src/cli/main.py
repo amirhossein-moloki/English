@@ -1,10 +1,12 @@
 import sys
 import argparse
 from pathlib import Path
+from typing import List, Dict
 from src.core.config import get_config, setup_logging
 from src.database.repository import Database
-from src.core.pipeline import ProcessingPipeline
+from src.core.pipeline import ProcessingPipeline, PipelineStats
 from src.anki.client import AnkiConnectClient
+from src.core.models import validate_canonical_json
 
 
 def main():
@@ -14,13 +16,17 @@ def main():
     # check-anki
     subparsers.add_parser("check-anki", help="Check AnkiConnect connection status")
 
+    # validate-json
+    val_parser = subparsers.add_parser("validate-json", help="Validate canonical JSON file(s)")
+    val_parser.add_argument("files", nargs="+", help="Path to JSON file(s)")
+
     # analyze
-    analyze_parser = subparsers.add_parser("analyze", help="Analyze input text file")
-    analyze_parser.add_argument("file", help="Path to text file containing ChatGPT output")
+    analyze_parser = subparsers.add_parser("analyze", help="Analyze input text/JSON file(s)")
+    analyze_parser.add_argument("files", nargs="+", help="Path to file(s) containing vocabulary")
 
     # import
-    import_parser = subparsers.add_parser("import", help="Import text file directly into Anki")
-    import_parser.add_argument("file", help="Path to text file containing ChatGPT output")
+    import_parser = subparsers.add_parser("import", help="Import vocabulary file(s) into Anki")
+    import_parser.add_argument("files", nargs="+", help="Path to file(s) containing vocabulary")
 
     # audio
     audio_parser = subparsers.add_parser("audio", help="Fetch and cache audio for a single word")
@@ -47,28 +53,55 @@ def main():
             print(f"[ERROR] Could not connect to AnkiConnect at {config.anki_connect_url}")
             sys.exit(1)
 
+    elif args.command == "validate-json":
+        for file_str in args.files:
+            filepath = Path(file_str)
+            if not filepath.exists():
+                print(f"[ERROR] File not found: {filepath}")
+                continue
+            text = filepath.read_text(encoding="utf-8")
+            report = validate_canonical_json(text)
+            print(f"\n--- Validation Report: {filepath.name} ---")
+            print(f"Status: {'VALID' if report.is_valid else 'INVALID'}")
+            print(f"Total Entries: {report.total_entries}")
+            print(f"Valid Entries: {len(report.valid_entries)}")
+            print(f"Errors: {len(report.errors)}")
+            for err in report.errors:
+                print(f"  [Index {err.entry_index}] Field '{err.field}': {err.message}")
+
     elif args.command == "analyze":
-        filepath = Path(args.file)
-        if not filepath.exists():
-            print(f"[ERROR] File not found: {filepath}")
-            sys.exit(1)
-        text = filepath.read_text(encoding="utf-8")
-        items = pipeline.analyze_text(text)
-        print(f"Analyzed {len(items)} vocabulary items:")
+        sources: Dict[str, str] = {}
+        for file_str in args.files:
+            filepath = Path(file_str)
+            if not filepath.exists():
+                print(f"[ERROR] File not found: {filepath}")
+                continue
+            sources[filepath.name] = filepath.read_text(encoding="utf-8")
+
+        items = pipeline.analyze_sources(sources) if len(sources) > 1 else (
+            pipeline.analyze_text(next(iter(sources.values())), source_name=next(iter(sources.keys()))) if sources else []
+        )
+        print(f"Analyzed {len(items)} vocabulary items from {len(sources)} source(s):")
         for item in items:
-            print(f"- {item.word} | Meaning: {item.meaning or 'N/A'} | Status: {item.status.value}")
+            meaning = item.meaning_en or item.meaning_fa or item.meaning or "N/A"
+            print(f"- [{item.source}] {item.word} | Meaning: {meaning} | Status: {item.status.value}")
 
     elif args.command == "import":
-        filepath = Path(args.file)
-        if not filepath.exists():
-            print(f"[ERROR] File not found: {filepath}")
-            sys.exit(1)
-        text = filepath.read_text(encoding="utf-8")
-        items = pipeline.analyze_text(text)
-        print(f"Importing {len(items)} items...")
+        sources: Dict[str, str] = {}
+        for file_str in args.files:
+            filepath = Path(file_str)
+            if not filepath.exists():
+                print(f"[ERROR] File not found: {filepath}")
+                continue
+            sources[filepath.name] = filepath.read_text(encoding="utf-8")
 
-        def _prog(item, idx, total):
-            print(f"[{idx}/{total}] {item.word} -> {item.status.value}")
+        items = pipeline.analyze_sources(sources) if len(sources) > 1 else (
+            pipeline.analyze_text(next(iter(sources.values())), source_name=next(iter(sources.keys()))) if sources else []
+        )
+        print(f"Importing {len(items)} items from {len(sources)} source(s)...")
+
+        def _prog(item, idx, total, stats: PipelineStats):
+            print(f"[{idx}/{total}] [{item.source}] {item.word} -> {item.status.value}")
 
         pipeline.process_items(items, progress_callback=_prog)
         print("Import completed!")
